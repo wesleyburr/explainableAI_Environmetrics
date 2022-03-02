@@ -56,12 +56,12 @@ SoilMoist1 = SoilMoist1c;
 
 # Set up a neural network
 # define base model
-SoilTrain =  np.transpose( SoilMoist1[:,Lag1:(784+Lag1)] )
-SSTTrain = np.transpose( SSTanom2[:,0:784] )
+SoilTrain =  np.transpose( SoilMoist1[:,Lag1:(784+Lag1+24)] )
+SSTTrain = np.transpose( SSTanom2[:,0:(784+24)] )
 SSTFirst = SSTTrain[0,:]
 SSTTrainSd1 = np.std(SSTTrain, axis = 0 )
-SoilTest = SoilMoist1[:,797]
-SoilTesta = SoilMoist1a[:,797]
+SoilTest = SoilMoist1[:,(797+24)]
+SoilTesta = SoilMoist1a[:,(797+12)]
 
 pca_top1 = PCA( n_components = 60 )
 pca_top1.fit( SSTTrain) 
@@ -82,15 +82,15 @@ model.add( Dense( 1224 ) )#, activation = 'tanh' ) )
 model.compile( loss = 'mean_squared_error', optimizer='adam')
     
 # # fit the keras model on the dataset
-model.fit(STTrain_pca, SoilTrain, epochs=500)#, batch_size=10)
+model.fit(STTrain_pca, SoilTrain, epochs=1000)#, batch_size=10)
 
 
-SSTtest = pca_top1.transform( np.reshape( SSTanom2[:,794], (1, 3186) ) )
-SoilTest = SoilMoist1[:,797]
+SSTtest = pca_top1.transform( np.reshape( SSTanom2[:,(794+24)], (1, 3186) ) )
+SoilTest = SoilMoist1[:,(797+24)]
 
 # Predict with the model
 y1 = model.predict( SSTtest )
-y1a = model.predict( SSTtest )*SoilMoist1s[797] + SoilMoist1bm[797] 
+y1a = model.predict( SSTtest )*SoilMoist1s[(797+24)] + SoilMoist1bm[(797+24)] 
 MSE1 = MeanSquaredError()
 y1MSE = MSE1( SoilTest, y1 ).numpy()
 y1MSEa = MSE1( SoilTesta, y1a ).numpy()
@@ -111,8 +111,8 @@ ypoints1  = LandData1['Lon']
 
 # Predict the data...
 Zsd1 = np.std( SoilTrain[0,:] )
-Z1 = SoilMoist1[:,797]
-SSTFirst = SSTanom2[:,(794)]
+Z1 = SoilMoist1[:,(797+24)]
+SSTFirst = SSTanom2[:,(794+24)]
 Zsens1 = np.copy( SSTFirst )
 Zn1 = np.shape(Zsens1)[0]
 Zsens2 = np.copy( SSTFirst )
@@ -143,7 +143,7 @@ df= pd.DataFrame( data = np.transpose(data1), columns = ['Z','X','Y'] )
 data3 =  np.hstack( ( SSTlonlat , np.reshape(Zsens3, (3186,1) )))
 df3 = pd.DataFrame( data3,  columns=['X','Y','Z0'] )
 # Write the data out...
-df3.to_csv("Plots/ANNDerivPCA_Jan_to_May_Ratio.csv", index = False)
+df3.to_csv("Plots/ANNDeriv_Feb_to_May_Ratio2016.csv", index = False)
 # df3 = pd.read_csv("Plots/ANNDerivPCA_Jan_to_May_Ratio.csv")
 
 #################################################################################
@@ -157,9 +157,9 @@ plt.hlines( 0, xmin = np.min(df3.X), xmax = np.max(df3.X), linewidth = 0.5, colo
 plt.colorbar()
 plt.xlabel('Lon')
 plt.ylabel('Lat')
-plt.title('February to May (PCA$_{60}$)')
+plt.title('2016 May (PCA$_{60}$) $R^2_{pred}=$'+ str( np.round( predR2,3)))
 #os.chdir("/Volumes/GoogleDrive/My Drive/Research/Working Group /SoilMoistureExample")
-plt.savefig('Plots/Pred_PCA_Jan_to_May_Ratio.png', format = 'png')#, quality = 100)
+plt.savefig('Plots/Pred_PCA_Feb_to_May_Ratio2016.png', format = 'png')#, quality = 100)
 plt.show()
 
 

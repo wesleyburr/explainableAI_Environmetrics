@@ -143,7 +143,7 @@ df= pd.DataFrame( data = np.transpose(data1), columns = ['Z','X','Y'] )
 data3 =  np.hstack( ( SSTlonlat , np.reshape(Zsens3, (3186,1) )))
 df3 = pd.DataFrame( data3,  columns=['X','Y','Z0'] )
 # Write the data out...
-df3.to_csv("Plots/ANNDerivPCA_Jan_to_May_Ratio.csv", index = False)
+df3.to_csv("Plots/ANNDeriv_Feb_to_May_Ratio2014.csv", index = False)
 # df3 = pd.read_csv("Plots/ANNDerivPCA_Jan_to_May_Ratio.csv")
 
 #################################################################################
@@ -157,9 +157,9 @@ plt.hlines( 0, xmin = np.min(df3.X), xmax = np.max(df3.X), linewidth = 0.5, colo
 plt.colorbar()
 plt.xlabel('Lon')
 plt.ylabel('Lat')
-plt.title('February to May (PCA$_{60}$)')
+plt.title('2014 May (PCA$_{60}$) $R^2_{pred}=$'+ str( np.round( predR2,3)))
 #os.chdir("/Volumes/GoogleDrive/My Drive/Research/Working Group /SoilMoistureExample")
-plt.savefig('Plots/Pred_PCA_Jan_to_May_Ratio.png', format = 'png')#, quality = 100)
+plt.savefig('Plots/Pred_PCA_Feb_to_May_Ratio2014.png', format = 'png')#, quality = 100)
 plt.show()
 
 

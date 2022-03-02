@@ -21,9 +21,10 @@ import scipy.stats as sc
 # Change the working directory
 # os.chdir("/Volumes/GoogleDrive/My Drive/Research/Working Group /SoilMoistureExample/Model_ANN")
 # os.chdir("/home/ed/Documents/TiesWG/Model_ANN")
+os.chdir("/home/ed/Documents/GitHub/explainableAI_Environmetrics/ANN")
 
 # Set the desired lag...
-Lag1 = 1
+Lag1 = 4
 
 # Read in the data
 SST1_data1 =  pd.read_csv("SST_data.csv");
@@ -55,7 +56,7 @@ SoilMoist1 = SoilMoist1c;
 
 # Set up a neural network
 # define base model
-SoilTrain =  np.transpose( SoilMoist1[:,Lag1:(789+Lag1)] )
+SoilTrain =  np.transpose( SoilMoist1[:,Lag1:(784+Lag1)] )
 SSTTrain = np.transpose( SSTanom2[:,0:784] )
 SSTFirst = SSTTrain[0,:]
 SSTTrainSd1 = np.std(SSTTrain, axis = 0 )
@@ -74,14 +75,14 @@ plt.plot( np.cumsum( pca_top1.explained_variance_ratio_ * 100 ) )
 model = Sequential()
 model.add( Dense( 100, input_dim = 60, activation = 'tanh' ) )
 model.add( Dense( 100, activation = 'tanh' ) )
-#model.add( Dense( 500, activation = 'tanh' ) )
+model.add( Dense( 500, activation = 'tanh' ) )
 model.add( Dense( 1224 ) )#, activation = 'tanh' ) )
 
 # # Compile the model
 model.compile( loss = 'mean_squared_error', optimizer='adam')
     
 # # fit the keras model on the dataset
-model.fit(STTrain_pca, SoilTrain, epochs=100)#, batch_size=10)
+model.fit(STTrain_pca, SoilTrain, epochs=500)#, batch_size=10)
 
 
 SSTtest = pca_top1.transform( np.reshape( SSTanom2[:,797-Lag1], (1, 3186) ) )
@@ -110,8 +111,8 @@ ypoints1  = LandData1['Lon']
 
 # Predict the data...
 Zsd1 = np.std( SoilTrain[0,:] )
-Z1 = SoilMoist1[:,800]
-SSTFirst = SSTanom2[:,(800-Lag1)]
+Z1 = SoilMoist1[:,797]
+SSTFirst = SSTanom2[:,(797-Lag1)]
 Zsens1 = np.copy( SSTFirst )
 Zn1 = np.shape(Zsens1)[0]
 Zsens2 = np.copy( SSTFirst )
@@ -129,52 +130,36 @@ for i in range( 0, Zn1 ):
 data1 = [ zpoints1, xpoints1, ypoints1 ]
 df= pd.DataFrame( data = np.transpose(data1), columns = ['Z','X','Y'] )
 
-Zsens2mx = np.max( Zsens2 )
-Zsens2mn = np.min( Zsens2 )
-Zsens1s = (1-(Zsens2 - Zsens2mn)/(Zsens2mx - Zsens2mn))
+#Zsens2mx = np.max( Zsens2 )
+#Zsens2mn = np.min( Zsens2 )
+#Zsens1s = (1-(Zsens2 - Zsens2mn)/(Zsens2mx - Zsens2mn))
 #Zsens2s = np.reshape( Zsens1s, (6,3186))
-data2 = np.hstack( (SSTlonlat, np.reshape(Zsens1s, (3186,1))))
-df2 = pd.DataFrame( data2 , columns=['X','Y','Z0'] )
-Zsens3mx = np.max( Zsens3 )
-Zsens3mn = np.min( Zsens3 )
-Zsens3s = 1 - (Zsens3 - Zsens3mn)/(Zsens3mx - Zsens3mn)
+#data2 = np.hstack( (SSTlonlat, np.reshape(Zsens1s, (3186,1))))
+#df2 = pd.DataFrame( data2 , columns=['X','Y','Z0'] )
+#Zsens3mx = np.max( Zsens3 )
+#Zsens3mn = np.min( Zsens3 )
+#Zsens3s = 1 - (Zsens3 - Zsens3mn)/(Zsens3mx - Zsens3mn)
 #Zsens3s1 = np.reshape( Zsens3s, (6,3186) )
-data3 =  np.hstack( ( SSTlonlat , np.reshape(Zsens3s, (3186,1) )))
+data3 =  np.hstack( ( SSTlonlat , np.reshape(Zsens3, (3186,1) )))
 df3 = pd.DataFrame( data3,  columns=['X','Y','Z0'] )
-
-
-
+# Write the data out...
+df3.to_csv("Plots/ANNDerivPCA_Jan_to_May_Ratio.csv", index = False)
+# df3 = pd.read_csv("Plots/ANNDerivPCA_Jan_to_May_Ratio.csv")
 
 #################################################################################
 #  Make some pictures
 #
 
-#fig = plt.figure()
-#plt.scatter( df2.X, df2.Y, s = 0.1, c = 'white')
-#plt.scatter( df2.X, df2.Y, s = 5*df2.Z0, c = df2.Z0, cmap = 'Blues') #, alpha = 0.5)
-#plt.colorbar()
-#plt.xlabel('lon')
-#plt.ylabel('lat')
-#plt.title('Predicted Time '+str(550)+' (PCA) \n Data Time='+str(550-Lag1)+' MSEpred='+str(np.round( y1MSE,3)) )
-#os.chdir("/Volumes/GoogleDrive/My Drive/Research/Working Group /SoilMoistureExample")
-#plt.savefig('Plots/Pred_LagPCA'+str(Lag1)+'.png', format = 'png')#, quality = 100)
-#plt.show()
-
-
 fig = plt.figure()
-plt.scatter( df2.X, df2.Y, s = 0.1, c = 'white')
+plt.scatter( df3.X, df3.Y, s = 0.1, c = 'white')
 plt.scatter( df3.X, df3.Y, s = 5*df3.Z0, c = df3.Z0, cmap = 'bwr') #, alpha = 0.5)
 plt.hlines( 0, xmin = np.min(df3.X), xmax = np.max(df3.X), linewidth = 0.5, colors = "black")
 plt.colorbar()
-plt.xlabel('lon')
-plt.ylabel('lat')
-plt.title('April (PCA): $R^2_{pred}$='+str(np.round( predR2,3))+', MSE$_{pred}$=' +str(np.round( y1MSEa,3) ))
+plt.xlabel('Lon')
+plt.ylabel('Lat')
+plt.title('January to May (PCA$_{60}$)')
 #os.chdir("/Volumes/GoogleDrive/My Drive/Research/Working Group /SoilMoistureExample")
-plt.savefig('Plots/Pred_LagPCA'+str(Lag1)+'_Ratio.png', format = 'png')#, quality = 100)
+plt.savefig('Plots/Pred_PCA_Jan_to_May_Ratio.png', format = 'png')#, quality = 100)
 plt.show()
 
-
-# Write the data out...
-df2.to_csv("Plots/ANNDerivPCALag"+str(Lag1)+".csv", index = False )
-df3.to_csv("Plots/ANNDerivPCALag"+str(Lag1)+"_Ratio.csv", index = False)
 

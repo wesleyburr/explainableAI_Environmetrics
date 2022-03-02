@@ -1,11 +1,11 @@
 import os
 import numpy as np
 import pandas as pd
-from tensorflow import keras
+#from tensorflow import keras
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.losses import MeanSquaredError
-import tensorflow as tf
+#import tensorflow as tf
 #tf.config.run_functions_eagerly(True)
 #from tensorflow.keras.layers import Conv2D
 #from tensorflow.keras.wrappers.scikit_learn import KerasRegressor
@@ -23,6 +23,7 @@ import scipy.stats as sc
 # os.chdir("/Volumes/GoogleDrive/My Drive/Research/Working Group /SoilMoistureExample/Model_ANN")
 # os.chdir("/home/ed/Documents/TiesWG/Model_ANN")
 # os.chdir("G:/GoogleDrive/My Drive/Research/Working Group /SoilMoistureExample/Model_ANN")
+os.chdir("/home/ed/Documents/GitHub/explainableAI_Environmetrics/ANN")
 
 # Set the desired lag...
 Lag1 = 4
@@ -140,61 +141,26 @@ data3 =  np.hstack( ( SSTlonlat , np.reshape(Zsens3 , (3186,1) )))
 df3 = pd.DataFrame( data3,  columns=['X','Y','Z0'] )
 
 
-
+# Write the data out...
+df3.to_csv("Plots/ANNDerivRAWJan_to_May_Ratio.csv", index = False)
 
 
 #################################################################################
 #  Make some pictures
 #
 
-#fig = plt.figure()
-#plt.scatter( df2.X, df2.Y, s = 0.1, c = 'white')
-#plt.scatter( df2.X, df2.Y, s = 5*df2.Z0, c = df2.Z0, cmap = 'Blues') #, alpha = 0.5)
-#plt.colorbar()
-#plt.xlabel('lon')
-#plt.ylabel('lat')
-#plt.title('Predicted Time '+str(550)+' (PCA) \n Data Time='+str(550-Lag1)+' MSEpred='+str(np.round( y1MSE,3)) )
-#os.chdir("/Volumes/GoogleDrive/My Drive/Research/Working Group /SoilMoistureExample")
-#plt.savefig('Plots/Pred_LagPCA'+str(Lag1)+'.png', format = 'png')#, quality = 100)
-#plt.show()
-
 fig = plt.figure()
 plt.scatter( df2.X, df2.Y, s = 0.1, c = 'white')
 plt.scatter( df3.X, df3.Y, s = 5*df3.Z0, c = df3.Z0, cmap = 'bwr') #, alpha = 0.5)
 plt.hlines( 0, xmin = np.min(df3.X), xmax = np.max(df3.X), linewidth = 0.5, colors = "black")
 plt.colorbar()
-plt.xlabel('lon')
-plt.ylabel('lat')
-plt.title('March (RAW): $R^2_{pred}$='+str(np.round( predR2,3))+', MSE$_{pred}$=' +str(np.round( y1MSEa,3) ))
+plt.xlabel('Lon')
+plt.ylabel('Lat')
+plt.title('January to May (RAW)')
 #os.chdir("/Volumes/GoogleDrive/My Drive/Research/Working Group /SoilMoistureExample")
-plt.savefig('Plots/Pred_LagRAW'+str(Lag1)+'_Ratio.png', format = 'png')#, quality = 100)
+plt.savefig('Plots/Pred_Jan_to_May_Ratio.png', format = 'png')#, quality = 100)
 plt.show()
 
-# sb.set_theme(style='ticks')
-# plt.figure(figsize=(10, 8), constrained_layout=True)
-# p = sb.scatterplot(x=df3.X, y=df3.Y, hue=df3.Z0, palette='RdGy_r')
-# norm = plt.Normalize(min(df3.Z0), max(df3.Z0) )
-# sm = plt.cm.ScalarMappable(cmap='RdGy_r', norm=norm)
-# sm.set_array([])
-# p.figure.colorbar(sm)
-# p.get_legend().remove()
-# p.get_figure().savefig('Plots/Pred_LagRAW'+str(Lag1)+'_Ratio2.png', dpi=100)
 
-# Write the data out...
-df2.to_csv("Plots/ANNDerivRAWLag"+str(Lag1)+".csv", index = False )
-df3.to_csv("Plots/ANNDerivRAWLag"+str(Lag1)+"_Ratio.csv", index = False)
 
-#df3 <- pd.read_csv( "Plots/ANNDerivRAWLag1_Ratio.csv" )
-
-# fig = plt.figure()
-# plt.scatter( df3.X, df3.Y, s = 0.1, c = 'white')
-# plt.scatter( df3.X, df3.Y, s = 5*df3.Z0, c = df3.Z0, cmap = 'bwr') #, alpha = 0.5)
-# plt.hlines( 0, xmin = np.min(df3.X), xmax = np.max(df3.X), linewidth = 0.5, colors = "black")
-# plt.colorbar()
-# plt.xlabel('lon')
-# plt.ylabel('lat')
-# plt.title('July: (RAW) $R^2_{pred}$=0.56, MSE$_{pred}$=8557.259' )
-# os.chdir("/Volumes/GoogleDrive/My Drive/Research/Working Group /SoilMoistureExample")
-# plt.savefig('Plots/Pred_LagRAW'+str(Lag1)+'_Ratio.png', format = 'png')#, quality = 100)
-# plt.show()
 

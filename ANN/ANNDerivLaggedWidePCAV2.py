@@ -29,7 +29,8 @@ import scipy.stats as sc
 # Change the working directory
 # os.chdir("/Volumes/GoogleDrive/My Drive/Research/Working Group /SoilMoistureExample/Model_ANN")
 # os.chdir("/home/ed/Documents/TiesWG")
-os.chdir("/home/ed/Documents/GitHub/explainableAI_Environmetrics/ANN")
+# os.chdir("/home/ed/Documents/GitHub/explainableAI_Environmetrics/ANN")
+os.chdir("/Users/ed/Documents/GitHub/Spatial/explainableAI_Environmetrics/ANN")
 
 # Set the desired lag...
 Lag1 = 0
@@ -116,18 +117,18 @@ model.add( Dense( 1224))#, activation = 'tanh' ) )
 model.compile( loss = 'mean_squared_error', optimizer='adam')
     
 # # fit the keras model on the dataset
-model.fit(SSTTrain, SoilTrain, epochs=100)#, batch_size=10)
+model.fit(SSTTrain, SoilTrain, epochs=500)#, batch_size=10)
 
 
 # Predict the data...
 Zsd1 = np.std( SoilTrain[0,:] )
 Z1 = SoilMoist1[:,797]
-SSTFirst = np.concatenate( ( pca1.transform(SSTanom2[:,788].reshape([1,3186])).T,
-                             pca1.transform(SSTanom2[:,789].reshape([1,3186])).T,
+SSTFirst = np.concatenate( ( pca1.transform(SSTanom2[:,789].reshape([1,3186])).T,
                              pca1.transform(SSTanom2[:,790].reshape([1,3186])).T,
                              pca1.transform(SSTanom2[:,791].reshape([1,3186])).T,
                              pca1.transform(SSTanom2[:,792].reshape([1,3186])).T,
-                             pca1.transform(SSTanom2[:,793].reshape([1,3186])).T ) )
+                             pca1.transform(SSTanom2[:,793].reshape([1,3186])).T,
+                             pca1.transform(SSTanom2[:,794].reshape([1,3186])).T ) )
 # Predict with the model
 y1 = model.predict( np.reshape( SSTFirst, (1, 60*6) ) )
 y1a = y1*SoilMoist1s[797] + SoilMoist1bm[797]
@@ -149,12 +150,12 @@ ypoints1  = LandData1['Lon']
 # Predict the data...
 Zsd1 = np.std( SoilTrain[0,:] )
 Z1 = SoilMoist1[:,797]
-SSTFirst = np.concatenate( (SSTanom2[:,788],
-    SSTanom2[:,789],
+SSTFirst = np.concatenate( (SSTanom2[:,789],
     SSTanom2[:,790],
     SSTanom2[:,791],
     SSTanom2[:,792],
-    SSTanom2[:,793]) )
+    SSTanom2[:,793],
+    SSTanom2[:,794]) )
 Zsens1 = np.copy( SSTFirst )
 Zn1 = np.shape(Zsens1)[0]
 Zsens2 = np.copy( SSTFirst )
@@ -208,9 +209,9 @@ plt.hlines( 0, xmin = np.min(df3.X), xmax = np.max(df3.X), linewidth = 0.5, colo
 plt.colorbar()
 plt.xlabel('lon')
 plt.ylabel('lat')
-plt.title('January to May (PCA$_{60}$ Wide) January')
+plt.title('February to May (PCA$_{60}$ Wide) February')
 #os.chdir("/Volumes/GoogleDrive/My Drive/Research/Working Group /SoilMoistureExample")
-plt.savefig('Plots/Pred_Jan_to_May_PCA_ratio.png', format = 'png')#, quality = 100)
+plt.savefig('Plots/Pred_Feb_to_May_PCA_ratio.png', format = 'png')#, quality = 100)
 plt.show()
 
 fig = plt.figure()
@@ -220,9 +221,9 @@ plt.hlines( 0, xmin = np.min(df3.X), xmax = np.max(df3.X), linewidth = 0.5, colo
 plt.colorbar()
 plt.xlabel('lon')
 plt.ylabel('lat')
-plt.title('January to May (PCA$_{60}$ Wide) December')
+plt.title('February to May (PCA$_{60}$ Wide) January')
 #os.chdir("/Volumes/GoogleDrive/My Drive/Research/Working Group /SoilMoistureExample")
-plt.savefig('Plots/Pred_Dec_to_May_PCA_ratio.png', format = 'png')#, quality = 100)
+plt.savefig('Plots/Pred_Jan_to_May_PCA_ratio.png', format = 'png')#, quality = 100)
 plt.show()
 
 
@@ -233,9 +234,9 @@ plt.hlines( 0, xmin = np.min(df3.X), xmax = np.max(df3.X), linewidth = 0.5, colo
 plt.colorbar()
 plt.xlabel('lon')
 plt.ylabel('lat')
-plt.title('January to May (PCA$_{60}$ Wide) November')
+plt.title('February to May (PCA$_{60}$ Wide) December')
 #os.chdir("/Volumes/GoogleDrive/My Drive/Research/Working Group /SoilMoistureExample")
-plt.savefig('Plots/Pred_Nov_to_May_PCA_ratio.png', format = 'png')#, quality = 100)
+plt.savefig('Plots/Pred_Dec_to_May_PCA_ratio.png', format = 'png')#, quality = 100)
 plt.show()
 
 
@@ -246,9 +247,9 @@ plt.hlines( 0, xmin = np.min(df3.X), xmax = np.max(df3.X), linewidth = 0.5, colo
 plt.colorbar()
 plt.xlabel('lon')
 plt.ylabel('lat')
-plt.title('January to May (PCA$_{60}$ Wide) October')
+plt.title('February to May (PCA$_{60}$ Wide) November')
 #os.chdir("/Volumes/GoogleDrive/My Drive/Research/Working Group /SoilMoistureExample")
-plt.savefig('Plots/Pred_Oct_to_May_PCA_ratio.png', format = 'png')#, quality = 100)
+plt.savefig('Plots/Pred_Nov_to_May_PCA_ratio.png', format = 'png')#, quality = 100)
 plt.show()
 
 
@@ -259,9 +260,9 @@ plt.hlines( 0, xmin = np.min(df3.X), xmax = np.max(df3.X), linewidth = 0.5, colo
 plt.colorbar()
 plt.xlabel('lon')
 plt.ylabel('lat')
-plt.title('January to May (PCA$_{60}$ Wide) September')
+plt.title('Feburary to May (PCA$_{60}$ Wide) October')
 #os.chdir("/Volumes/GoogleDrive/My Drive/Research/Working Group /SoilMoistureExample")
-plt.savefig('Plots/Pred_Sept_to_May_PCA_ratio.png', format = 'png')#, quality = 100)
+plt.savefig('Plots/Pred_Oct_to_May_PCA_ratio.png', format = 'png')#, quality = 100)
 plt.show()
 
 
@@ -272,23 +273,12 @@ plt.hlines( 0, xmin = np.min(df3.X), xmax = np.max(df3.X), linewidth = 0.5, colo
 plt.colorbar()
 plt.xlabel('lon')
 plt.ylabel('lat')
-plt.title('January to May (PCA$_{60}$ Wide) August')
+plt.title('February to May (PCA$_{60}$ Wide) September')
 #os.chdir("/Volumes/GoogleDrive/My Drive/Research/Working Group /SoilMoistureExample")
-plt.savefig('Plots/Pred_Aug_to_May_PCA_ratio.png', format = 'png')#, quality = 100)
+plt.savefig('Plots/Pred_Sep_to_May_PCA_ratio.png', format = 'png')#, quality = 100)
 plt.show()
 
 
-fig = plt.figure()
-plt.scatter( df3.X, df3.Y, s = 0.1, c = 'white')
-plt.scatter( df3.X, df3.Y, s = 5*df3.Z0, c = df3.Z0, cmap = 'bwr') #, alpha = 0.5)
-plt.hlines( 0, xmin = np.min(df3.X), xmax = np.max(df3.X), linewidth = 0.5, colors = "black")
-plt.colorbar()
-plt.xlabel('lon')
-plt.ylabel('lat')
-plt.title('January to May (PCA$_{60}$ Wide) July')
-#os.chdir("/Volumes/GoogleDrive/My Drive/Research/Working Group /SoilMoistureExample")
-plt.savefig('Plots/Pred_Jul_to_May_PCA_ratio.png', format = 'png')#, quality = 100)
-plt.show()
 
 
 

@@ -1,0 +1,378 @@
+---
+title: "XGBoost for AI"
+author: "Susan Simmons"
+date: "3/1/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Import data sets
+
+The following code is used on the clustered data set (so need to import the csv files that include cluster information).
+
+```{r reading in data sets}
+library(raster)
+library(ncdf4)
+library(ggplot2)
+library(fpc)
+library(dplyr)
+library(caret)
+library(randomForest)
+library(doParallel)
+library(xgboost)
+library(plyr)
+library(iml)
+library(Ckmeans.1d.dp)
+library(SHAPforxgboost)
+SST.clus=read.csv('Q:\\My Drive\\“AI” and Environmental Statistics\\Working Group\\New Soil Moisture SST Data\\SST_withclus.csv')
+soil.new=read.csv('Q:\\My Drive\\“AI” and Environmental Statistics\\Working Group\\New Soil Moisture SST Data\\Soil.csv')
+Borneo.new=read.csv('Q:\\My Drive\\“AI” and Environmental Statistics\\Working Group\\New Soil Moisture SST Data\\Borneo.csv')
+```
+
+## Feature creation
+
+With algorithms such as XG-Boost, it is important to create features that provide information on the response variable.  The code below calculates means, variances, min and max information for each cluster in each time frame.
+
+```{r feature creation}
+SST.clus2=data.frame(SST.clus)
+colnames(SST.clus2)[1]="Clust"
+SST_var=SST.clus2[,-c(2:3)] %>% group_by(Clust)   %>% summarize_all(var)
+SST_var=SST_var[,-1]
+SST_mean=SST.clus2[,-c(2:3)] %>% group_by(Clust)   %>% summarize_all(mean)
+SST_mean=SST_mean[,-1]
+SST_max=SST.clus2[,-c(2:3)] %>% group_by(Clust)   %>% summarize_all(max)
+SST_max=SST_max[,-1]
+SST_min=SST.clus2[,-c(2:3)] %>% group_by(Clust)   %>% summarize_all(min)
+SST_min=SST_min[,-1]
+
+```
+
+## X matrix for sea surface data
+The following x matrix will be repeated for each location (using a training data set of 1948-2013 or 792 months).
+
+The rol.lag is number of months to "roll-up".  The for.ahead indicates how far out to forecast (for example, if for.ahead is 1, then forecasting next month.)
+```{r data manipulation}
+##rol.lag is how many lags to "roll up to consider in analysis"
+rol.lag=3
+#for.ahead is the number of months ahead to forecast (if for.ahead=1, then forecasting next month)
+for.ahead=3
+
+###Using the clustered data
+### Need to use years 1948-2013 as training
+### corresponds to columns 1-792(test is 793-888)
+
+## Create X matrix
+## mean of cluster for number of lags requested (mean)
+## variance of clusters for number of lags requested (median)
+## Change from previous number of lags months (max[mean] - min[mean])
+## Change in deviations from previous numbers of lags (current median std/old median std)
+## Month being forecasted
+## Soil info lagged
+x.train=matrix(nrow=(792-2*rol.lag-for.ahead+1),ncol=300)
+
+for (i in (rol.lag):(792-rol.lag-for.ahead)){
+        temp1=SST_mean[,(i+1):(i+rol.lag)]
+        temp1.1=apply(temp1,1,mean)
+        temp2=SST_var[,(i+1):(i+rol.lag)]
+        temp2.2=apply(temp2,1,median)
+        temp3.1=SST_max[,(i+1):(i+rol.lag)]
+        temp3.max=apply(temp3.1,1,max)
+        temp3.2=SST_min[,(i-rol.lag+1):(i)]
+        temp3.min=apply(temp3.2,1,min)
+        temp3.3=temp3.max-temp3.min
+        temp4.2=SST_var[,(i-rol.lag+1):(i)]
+        temp4.old=apply(temp4.2,1,median)
+        temp4.4=temp2.2/temp4.old
+        x.train[i-rol.lag+1,]=c(temp1.1,temp2.2,temp3.3,temp4.4)
+}
+## For month information
+months.mat=kronecker(rep(1,100),diag(12))
+months.mat1=months.mat[1:nrow(x.train),]
+x.train=cbind(x.train,months.mat1)
+########################################
+#######################################
+#x.train is repeated for every soil location...
+
+
+
+```
+
+Now for the test set...
+
+```{r}
+x.test=matrix(nrow=92,ncol=300)
+for (i in (792+rol.lag-4):(888-rol.lag-for.ahead)){
+        temp1=SST_mean[,(i+1):(i+rol.lag)]
+        temp1.1=apply(temp1,1,mean)
+        temp2=SST_var[,(i+1):(i+rol.lag)]
+        temp2.2=apply(temp2,1,median)
+        temp3.1=SST_max[,(i+1):(i+rol.lag)]
+        temp3.max=apply(temp3.1,1,max)
+        temp3.2=SST_min[,(i-rol.lag+1):(i)]
+        temp3.min=apply(temp3.2,1,min)
+        temp3.3=temp3.max-temp3.min
+        temp4.2=SST_var[,(i-rol.lag+1):(i)]
+        temp4.old=apply(temp4.2,1,median)
+        temp4.4=temp2.2/temp4.old
+        x.test[i-792+2,]=c(temp1.1,temp2.2,temp3.3,temp4.4)
+}
+## For month information
+months.mat=kronecker(rep(1,9),diag(12))
+months.mat1=months.mat[1:nrow(x.test),]
+x.test=cbind(x.test,months.mat1)
+
+```
+
+
+Since we are focusing on corn belt region, need to subset the soil moisture data.
+
+
+```{r Corn belt}
+
+corn.soil=soil.new %>% filter(between(Lon,-102,-80) & between(Lat,35.5,49))
+corn.soil=corn.soil[,-c(1:2)]
+
+corn.soil2=apply(corn.soil,2,mean)
+
+```
+
+
+
+## Run the XGBoost model
+
+The following code runs the XGBoost model (this will take a while). The Shapley matrix is storing ONLY the Shapley values for May (this is where we are focusing our attention).
+
+
+```{r,results='hide'}
+
+all.pred.y=matrix(nrow=nrow(corn.soil),ncol=92)
+shap.May=matrix(nrow=(8*nrow(corn.soil)),ncol=315)
+y.test.all=matrix(nrow=nrow(corn.soil),ncol=92)
+tt=12*seq(0,7)+1
+
+## Need to do for k=1 first
+k=1
+y.train=vector(length=nrow(x.train))
+soil.lag=matrix(nrow=784,ncol=3)
+for (i in (rol.lag):(792-rol.lag-for.ahead))
+    {soil.lag[(i-rol.lag+1),]=as.numeric(unlist(corn.soil[k,(i+1):(i+rol.lag)]))
+    y.train[(i-rol.lag+1)]=corn.soil[k,i+rol.lag+for.ahead]
+    }
+ x.train.all=cbind(x.train,soil.lag)
+ 
+soil.lag=matrix(nrow=92,ncol=rol.lag)
+y.test=vector(length=nrow(x.test))
+
+for (i in (792+rol.lag-4):(888-rol.lag-for.ahead))
+    {soil.lag[i-rol.lag-792+1,]=as.numeric(unlist(corn.soil[k,(i+1):(i+rol.lag)]))
+    y.test[(i-rol.lag-792+1+4)]=corn.soil[k,i+rol.lag+for.ahead]
+    y.test.all[k,i-792-rol.lag+1+4]=corn.soil[k,i+rol.lag+for.ahead]
+    }
+ x.test.all=cbind(x.test,soil.lag)
+
+
+dtrain <- xgb.DMatrix(data.matrix(x.train.all),label = y.train)
+dvalid <- xgb.DMatrix(data.matrix(x.test.all),label = y.test)
+params <- list(
+  objective = "reg:squarederror",
+  learning_rate = 0.05,
+  subsample = 0.9,
+  colsample_bynode = 1,
+  reg_lambda = 1,
+  max_depth = 5
+)
+set.seed(58914)
+fit_xgb <- xgb.train(
+  params,
+  data = dtrain,
+  watchlist = list(valid = dvalid),
+  early_stopping_rounds = 20,
+  print_every_n = 100,
+  nrounds = 1000 # early stopping
+) 
+pred.xgb=predict(fit_xgb,x.test.all)
+pred.xgb2=predict(object = fit_xgb, newdata = x.test.all, predcontrib = TRUE)
+
+all.pred.y[k,]=pred.xgb
+shap.May=pred.xgb2[tt,]
+
+## Now for all other locations in corn belt
+
+for (k in 2:nrow(corn.soil)){   
+y.train=vector(length=nrow(x.train))
+soil.lag=matrix(nrow=784,ncol=3)
+for (i in (rol.lag):(792-rol.lag-for.ahead))
+    {soil.lag[(i-rol.lag+1),]=as.numeric(unlist(corn.soil[k,(i+1):(i+rol.lag)]))
+    y.train[(i-rol.lag+1)]=corn.soil[k,i+rol.lag+for.ahead]
+    }
+ x.train.all=cbind(x.train,soil.lag)
+ 
+soil.lag=matrix(nrow=92,ncol=rol.lag)
+y.test=vector(length=nrow(x.test))
+
+for (i in (792+rol.lag-4):(888-rol.lag-for.ahead))
+    {soil.lag[i-rol.lag-792+1,]=as.numeric(unlist(corn.soil[k,(i+1):(i+rol.lag)]))
+    y.test[(i-rol.lag-792+1+4)]=corn.soil[k,i+rol.lag+for.ahead]
+    y.test.all[k,i-792-rol.lag+1+4]=corn.soil[k,i+rol.lag+for.ahead]
+    }
+ x.test.all=cbind(x.test,soil.lag)
+
+
+dtrain <- xgb.DMatrix(data.matrix(x.train.all),label = y.train)
+dvalid <- xgb.DMatrix(data.matrix(x.test.all),label = y.test)
+params <- list(
+  objective = "reg:squarederror",
+  learning_rate = 0.05,
+  subsample = 0.9,
+  colsample_bynode = 1,
+  reg_lambda = 1,
+  max_depth = 5
+)
+set.seed(58914)
+fit_xgb <- xgb.train(
+  params,
+  data = dtrain,
+  watchlist = list(valid = dvalid),
+  early_stopping_rounds = 20,
+  print_every_n = 100,
+  nrounds = 10000 # early stopping
+) 
+pred.xgb=predict(fit_xgb,x.test.all)
+pred.xgb2=predict(object = fit_xgb, newdata = x.test.all, predcontrib = TRUE)
+
+all.pred.y[k,]=pred.xgb
+temp=pred.xgb2[tt,]
+shap.May=rbind(shap.May,temp)
+}
+
+```
+
+## Plots
+
+Now for the plots
+
+```{r plots}
+
+temp=seq(0,1223)
+
+year.index=seq(1,8)
+for (i in year.index)
+ {temp2=8*temp+i  ### +1 is 2014, +2 is 2015..
+  shap2=shap.May[temp2,]
+  shap3=apply(shap2,2,mean)
+  if (i==1) {dat=cbind(seq(1,75),as.numeric(shap3[1:75]))}
+  if (i>1) {dat=cbind(dat,as.numeric(shap3[1:75]))}
+  }
+colnames(dat)=c("Clust","Shap2014","Shap2015","Shap2016","Shap2017","Shap2018","Shap2019","Shap2020","Shap2021")
+dat=data.frame(dat)
+SST.clus2=data.frame(SST.clus)
+colnames(SST.clus2)[1]="Clust"
+SSTvis=left_join(SST.clus2[,1:3],dat,by="Clust")
+SSTvis=data.frame(SSTvis)
+
+ggplot(SSTvis,aes(x=Lon,y=Lat)) +               geom_point(data=SSTvis,aes(x=Lon,y=Lat,col=Shap2014),size=1.2) +
+ scale_color_gradient2(low = "blue", mid = "white", high = "red", space = "Lab" ) +
+geom_hline(yintercept=c(0)) +
+  theme_classic()+labs(title="May 2014")
+
+ggplot(SSTvis,aes(x=Lon,y=Lat)) +               geom_point(data=SSTvis,aes(x=Lon,y=Lat,col=Shap2015),size=1.2) +
+ scale_color_gradient2(low = "blue", mid = "white", high = "red", space = "Lab" ) +
+geom_hline(yintercept=c(0)) +
+  theme_classic()+labs(title="May 2015")
+
+ggplot(SSTvis,aes(x=Lon,y=Lat)) +               geom_point(data=SSTvis,aes(x=Lon,y=Lat,col=Shap2016),size=1.2) +
+ scale_color_gradient2(low = "blue", mid = "white", high = "red", space = "Lab" ) +
+geom_hline(yintercept=c(0)) +
+  theme_classic()+labs(title="May 2016")
+
+ggplot(SSTvis,aes(x=Lon,y=Lat)) +               geom_point(data=SSTvis,aes(x=Lon,y=Lat,col=Shap2017),size=1.2) +
+ scale_color_gradient2(low = "blue", mid = "white", high = "red", space = "Lab" ) +
+geom_hline(yintercept=c(0)) +
+  theme_classic()+labs(title="May 2017")
+
+ggplot(SSTvis,aes(x=Lon,y=Lat)) +               geom_point(data=SSTvis,aes(x=Lon,y=Lat,col=Shap2018),size=1.2) +
+ scale_color_gradient2(low = "blue", mid = "white", high = "red", space = "Lab" ) +
+geom_hline(yintercept=c(0)) +
+  theme_classic()+labs(title="May 2018")
+
+ggplot(SSTvis,aes(x=Lon,y=Lat)) +               geom_point(data=SSTvis,aes(x=Lon,y=Lat,col=Shap2019),size=1.2) +
+ scale_color_gradient2(low = "blue", mid = "white", high = "red", space = "Lab" ) +
+geom_hline(yintercept=c(0)) +
+  theme_classic()+labs(title="May 2019")
+
+ggplot(SSTvis,aes(x=Lon,y=Lat)) +               geom_point(data=SSTvis,aes(x=Lon,y=Lat,col=Shap2020),size=1.2) +
+ scale_color_gradient2(low = "blue", mid = "white", high = "red", space = "Lab" ) +
+geom_hline(yintercept=c(0)) +
+  theme_classic()+labs(title="May 2020")
+
+ggplot(SSTvis,aes(x=Lon,y=Lat)) +               geom_point(data=SSTvis,aes(x=Lon,y=Lat,col=Shap2021),size=1.2) +
+ scale_color_gradient2(low = "blue", mid = "white", high = "red", space = "Lab" ) +
+geom_hline(yintercept=c(0)) +
+  theme_classic()+labs(title="May 2021")
+
+
+year.plot=c(rep(2014,1224*8), rep(2015,1224*12),rep(2016,1224*12),rep(2017,1224*12),rep(2018,1224*12),rep(2019,1224*12),rep(2020,1224*12),rep(2021,1224*12))
+y.all=data.frame(cbind(c(all.pred.y),c(y.test.all),year.plot))
+
+colnames(y.all)=c("Predicted","Actual","Year")
+ggplot(y.all,aes(x=Actual,y=Predicted)) +           geom_point(data=y.all,aes(x=Actual,y=Predicted,color=Year),size=0.5,shape=20) + scale_color_gradient(low = "yellow", high = "darkgreen", space = "Lab" )+
+  theme_classic()+labs(title="All Months")
+
+
+year.plot=c(rep(2014,1224), rep(2015,1224),rep(2016,1224),rep(2017,1224),rep(2018,1224),rep(2019,1224),rep(2020,1224),rep(2021,1224))
+
+only.may=12*seq(0,7)+1
+all.1=all.pred.y[,only.may]
+y.test.1=y.test.all[,only.may]
+y.all=data.frame(cbind(c(all.1),c(y.test.1),year.plot))
+
+colnames(y.all)=c("Predicted","Actual","Year")
+ggplot(y.all,aes(x=Actual,y=Predicted)) +           geom_point(data=y.all,aes(x=Actual,y=Predicted,color=Year),size=0.5,shape=20) + scale_color_gradient(low = "yellow", high = "darkgreen", space = "Lab" )+
+  theme_classic()+labs(title="May")
+
+mspe=vector(length=8)
+for (i in year.index){
+  if (i==1) {one.year=seq(1,8)}
+  if (i>1)  {one.year=8+(i-2)*12 + seq(1,12)}
+  all.1=all.pred.y[,one.year]
+  y.test.1=y.test.all[,one.year]
+  temp=mean((c(y.test.1)-c(all.1))^2)
+  mspe[i]=temp}
+
+mean((c(y.test.all)-c(all.pred.y))^2)
+1-sum((y.test.all-all.pred.y)^2)/sum((y.test.all-mean(y.test.all))^2)
+
+
+##May
+tt=12*seq(0,7)+5
+y.test.may=y.test.all[,tt]
+all.pred.may=all.pred.y[,tt]
+mean((c(y.test.may)-c(all.pred.may))^2)
+1-sum((y.test.may-all.pred.may)^2)/sum((y.test.may-mean(y.test.may))^2)
+
+
+```
+```{r different areas}
+##Trying a few single areas..
+#k=1058 NE area
+k=1058
+i=1 ##May 2014
+dat=cbind(seq(1,75),as.numeric(shap.May[(i+(k-1)*8),1:75]))
+
+dat=data.frame(dat)
+colnames(dat)=c("Clust","Shap")
+SST.clus2=data.frame(SST.clus)
+colnames(SST.clus2)[1]="Clust"
+SSTvis=left_join(SST.clus2[,1:3],dat,by="Clust")
+SSTvis=data.frame(SSTvis)
+
+ggplot(SSTvis,aes(x=Lon,y=Lat)) +               geom_point(data=SSTvis,aes(x=Lon,y=Lat,col=Shap),size=1.2) +
+ scale_color_gradient2(low = "blue", mid = "white", high = "red", space = "Lab" ) +
+geom_hline(yintercept=c(0)) +
+  theme_classic()+labs(title="May 2014")
+
+```
+

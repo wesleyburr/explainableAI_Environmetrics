@@ -82,7 +82,7 @@ model.add( Dense( 1224 ) )#, activation = 'tanh' ) )
 model.compile( loss = 'mean_squared_error', optimizer='adam')
     
 # # fit the keras model on the dataset
-model.fit(STTrain_pca, SoilTrain, epochs=1000)#, batch_size=10)
+model.fit(STTrain_pca, SoilTrain, epochs=500)#, batch_size=10)
 
 
 SSTtest = pca_top1.transform( np.reshape( SSTanom2[:,(794+24)], (1, 3186) ) )

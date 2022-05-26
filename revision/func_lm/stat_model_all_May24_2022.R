@@ -1,0 +1,254 @@
+library(tidyverse)
+library(fields)
+library(broom)
+library(gridExtra)
+library(glmnet)
+library(lubridate)
+library(modelr)
+theme_set(theme_classic(base_size = 25))
+
+#### soil moisture data
+
+SoilMoisture.all <- read.csv("../Soil.csv", header = T) %>%
+  tibble::rowid_to_column("sm_loc_id")
+
+# long format
+SoilMoisture.long=pivot_longer(SoilMoisture.all,cols=-c(Lon,Lat,sm_loc_id),names_to="date") %>% 
+  mutate(date=as.POSIXct(strptime(gsub("X","",date),"%m.%d.%Y")))
+
+## adding the 3-month lagged term for autocorrelation
+lag=3
+
+SoilMoisture.lagged=SoilMoisture.long %>%
+  transmute(sm_loc_id,lagged=value,date=date %m+% months(lag))
+
+SoilMoisture.long = SoilMoisture.long %>%
+  left_join(SoilMoisture.lagged) %>%
+  dplyr::filter(!is.na(lagged))
+
+### regression near the corn belt (35.5 - 48.5 N, -101.5 - -80.5 W)
+SoilMoisture.corn.belt.all = SoilMoisture.long %>%
+  dplyr::filter(Lat >=35.5,Lat <=48.5,Lon >=-101.5,Lon <=-80.5) 
+
+### persistence fits
+
+### in-sample period
+date.in = ymd("2013-12-31")
+
+pers.output = SoilMoisture.corn.belt.all %>%
+  dplyr::filter(date > date.in) %>%
+  mutate(fit=lagged) %>%
+  select(-lagged) %>%
+  as.data.frame()
+write.csv(pers.output,"outputs/persistence_fits.csv",row.names = F,quote = F)
+
+### climatology fits
+
+### climatology fits
+
+avg.month=SoilMoisture.corn.belt.all %>%
+  dplyr::filter(date <= date.in) %>%
+  group_by(sm_loc_id,Lon,Lat,month=month(date)) %>%
+  summarise(fit=mean(value,na.rm=T))
+
+clim.output = SoilMoisture.corn.belt.all %>%
+  dplyr::filter(date > date.in) %>%
+  mutate(month=month(date)) %>%
+  left_join(avg.month) %>%
+  select(-c(lagged,month)) %>%
+  as.data.frame()
+write.csv(clim.output,"outputs/climatology_fits.csv",row.names = F,quote = F)
+
+#### SST data
+SST.all = read.csv("../SST_data.csv", header = T) %>%
+  mutate(sst_loc_id=X) %>%
+  select(-X)
+
+### pca
+X=scale(as.matrix(SST.all %>% select(starts_with("X"))))
+colnames(X)=NULL
+row.names(X)=NULL
+
+pca=prcomp(X,scale=F,center = F)
+
+rank=first(which(cumsum(pca$sdev^2)/sum(pca$sdev^2) > 0.8))
+rank
+
+### checking how many pc's explain more than 1% of the variation
+last(which((pca$sdev^2)/sum(pca$sdev^2) > 0.01))
+
+### plots for justifying using the number of PCA
+png("figures/numpca.png",width = 480, height = 480)
+par(mar = c(5, 5, 4, 4) + 0.3)  
+plot(100*(pca$sdev^2)[1:30]/sum(pca$sdev^2),log="y",ylab="var. %",xlab="PC",cex=2,cex.axis=2,cex.lab=2)
+abline(h=1,lwd=2)
+par(new = TRUE)                            
+plot(100*cumsum(pca$sdev^2)[1:30]/sum(pca$sdev^2), axes=F, pch=17, cex.lab=2, col="purple",
+     ylab="",xlab="",cex=2)
+axis(side = 4, at = pretty(100*cumsum(pca$sdev^2)[1:30]/sum(pca$sdev^2)),
+     col.ticks="purple",col.axis="purple",cex.axis=2)   
+mtext("cummulative var. %", side = 4, line = 3,col="purple",cex=2)
+abline(h=80,col="purple",lwd=2)
+abline(v=21,col="grey",lwd=2)
+dev.off()
+
+basis=(pca$x)[,1:rank]
+colnames(basis)=paste0("phi",1:rank)
+
+pca.df=cbind(SST.all[,c("Lon","Lat")],basis)
+
+pca.df %>% 
+  pivot_longer(cols=-c(Lat,Lon),names_to="pca") %>%
+  mutate(pca=as.numeric(gsub("phi","",pca))) %>%
+  dplyr::filter(pca <= 12) %>%
+  ggplot(aes(x=Lon,y=Lat,col=value)) + 
+  geom_point() +
+  facet_wrap(.~pca, scales="free") +
+  scale_color_viridis_c(direction = -1,alpha=0.5) +
+  geom_hline(yintercept=0) +
+  theme_classic(base_size = 12)
+
+### functional regression model with pca basis
+#### generating basis for the SST_locations
+
+SST.bas = as.data.frame(basis)
+colnames(SST.bas)=paste0("V",1:rank)
+
+### creating the inner products of pca basis with the SST data
+inner.mat = t(X)%*%as.matrix(SST.bas)/nrow(SST.all)
+row.names(inner.mat)=NULL
+
+## final matrix of covariates with time shifted by 3 months (for 3 months ahead prediction)
+SST.lagged.dates=as.POSIXct(strptime(gsub("X","",
+  colnames(SST.all %>% select(starts_with("X")))),"%Y.%m.%d")) %m+% months(lag)
+SST.inner = cbind(data.frame(date=SST.lagged.dates),as.data.frame(inner.mat))
+
+SoilMoisture.corn.belt = SoilMoisture.corn.belt.all %>%
+ left_join(SST.inner) %>%
+ mutate(month=month(date))
+
+SoilMoisture.corn.belt.in=SoilMoisture.corn.belt  %>% 
+  dplyr::filter(date <= date.in)
+
+SoilMoisture.corn.belt.out=SoilMoisture.corn.belt %>% 
+  dplyr::filter(date > date.in)
+
+lm.formula = paste0("value ~ lagged + as.factor(month) + ", paste(paste0("V",1:ncol(inner.mat)),collapse=" + "))
+
+#lm.formula = paste0("value ~ lagged + as.factor(month)")
+#lm.formula = paste0("value ~ lagged + ", paste(paste0("V",1:ncol(inner.mat)),collapse=" + "))
+
+
+### regression ###
+SM.corn.belt.output=SoilMoisture.corn.belt.in %>% 
+   group_by(sm_loc_id) %>%
+   do(fitSM = lm(lm.formula, data = .))
+
+SoilMoisture.corn.belt.out.pred=SoilMoisture.corn.belt.out %>% 
+  group_by(sm_loc_id) %>%
+  nest %>% 
+  inner_join(SM.corn.belt.output) %>% 
+  mutate(pred = map2(fitSM, data, predict)) %>% 
+  unnest(c(data,pred)) %>%
+  as.data.frame %>%
+  select(sm_loc_id,Lon,Lat,date,month,value,lagged,pred)
+
+funclm.output=SoilMoisture.corn.belt.out.pred %>%
+  mutate(fit=pred) %>%
+  select(-c(pred,lagged,month))
+write.csv(funclm.output,"outputs/funclm_fits.csv",row.names = F,quote = F)
+
+### plotting the coefficient functional surface
+coeff=Reduce('+',lapply(SM.corn.belt.output$fitSM,function(x) x$coefficients))/length(unique(SM.corn.belt.output$sm_loc_id))
+surface=cbind(SST.all[,c("Lon","Lat")],data.frame(coeff=as.matrix(SST.bas)%*%tail(coeff,rank)))
+
+png("figures/coeff_surface.png",width=720,height=480)
+ggplot(data=SST.all,aes(x=Lon,y=Lat)) +
+  geom_point() +
+geom_point(data=surface,aes(x=Lon,y=Lat,col=coeff),size=2.2) +
+  scale_color_gradient2(low = "blue", mid = "white",
+                            high = "red", space = "Lab" ) +
+  geom_hline(yintercept=c(0))
+dev.off()
+
+## model reliance at cluster level)
+SSTclus = read.csv("../SST_withclus.csv", header = T) %>% 
+  select(Clust,Lon,Lat)
+
+SST.all.with.clus=SST.all %>%
+  left_join(SSTclus)
+
+X=scale(as.matrix(SST.all.with.clus %>% select(starts_with("X"))))
+colnames(X)=NULL
+row.names(X)=NULL
+
+datelist=unique(SoilMoisture.corn.belt.out$date) ## holdout dates
+out.cols=which(SST.lagged.dates %in% datelist) ## columns of the lagged SST data corresponding to hold out dates
+
+### this creates shuffled features for one hold-out timepoint d and SST pixels within one cluster "clus"
+### need to run this for all hold out dates and all clusters
+perm.MSPE.gen.clust=function(d,clus){
+  index=which(SST.all.with.clus$Clust==clus)
+  i=which(SST.lagged.dates==d)
+  print(c(clus,i))
+  ### X.perm is the shuffled feature set using all values for date d for all dates
+  X.perm=X
+  for(s in index){
+    X.perm[s,out.cols]=rep(X[s,i],length(out.cols))
+  }
+  
+  inner.mat.perm = t(X.perm)%*%as.matrix(SST.bas)/nrow(SST.all)
+  row.names(inner.mat.perm)=NULL
+  SST.inner.perm = cbind(data.frame(date=SST.lagged.dates),as.data.frame(inner.mat.perm))
+
+SoilMoisture.corn.belt.out.perm = SoilMoisture.corn.belt.all %>%
+   left_join(SST.inner.perm) %>%
+   mutate(month=month(date)) %>%
+   dplyr::filter(date > date.in) %>%
+   dplyr::filter(!(date==d)) ## the row corresponding to date d is removed from the prediction set (as in formula 3.3 of FIsher et a. 2018 the sum goes over all j \neq i)
+
+SoilMoisture.corn.belt.out.pred.perm=SoilMoisture.corn.belt.out.perm %>% 
+  group_by(sm_loc_id) %>%
+  nest %>% 
+  inner_join(SM.corn.belt.output) %>% 
+  mutate(pred = map2(fitSM, data, predict)) %>% 
+  unnest(c(data,pred)) %>%
+  as.data.frame %>%
+  select(sm_loc_id,Lon,Lat,date,month,value,lagged,pred)
+
+SoilMoisture.corn.belt.out.pred.perm.May=SoilMoisture.corn.belt.out.pred.perm %>%
+  dplyr::filter(month==5)
+
+  c(mean((SoilMoisture.corn.belt.out.pred.perm$pred-SoilMoisture.corn.belt.out.pred.perm$value)^2)/MSPE,
+       mean((SoilMoisture.corn.belt.out.pred.perm.May$pred-SoilMoisture.corn.belt.out.pred.perm.May$value)^2)/MSPE.May)
+}
+
+MRgen.clust=function(clus){
+  MR=as.vector(rowMeans(sapply(datelist,perm.MSPE.gen.clust,clus)))
+  SST.MR=SSTclus %>% dplyr::filter(Clust==clus)
+  SST.MR$MR=MR[1]
+  SST.MR$MR.May=MR[2]
+  SST.MR
+}
+
+tab.metrics=read.csv("metrics/funclm_metrics.csv")
+MSPE=tab.metrics$MSPE[1]
+MSPE.May=tab.metrics$MSPE[2]
+nclust=length(unique(SSTclus$Clust))
+l=lapply(1:nclust,MRgen.clust)
+MR.df=Reduce('rbind',l)
+save(MR.df,file="modelreliance.Rdata")
+
+library(gridExtra)
+
+png("figures/MR_May.png",width=720,height=480)
+ggplot(data=SST.all,aes(x=Lon,y=Lat)) +
+  geom_point() +
+geom_point(data=MR.df,aes(x=Lon,y=Lat,col=pmax(0,log(MR.May))),size=2.2) +
+  scale_color_gradient2(low = "blue", mid = "white",
+                            high = "red", space = "Lab" , midpoint=0.001) +
+  geom_hline(yintercept=c(0)) +
+  labs(col="")
+dev.off()
+
+

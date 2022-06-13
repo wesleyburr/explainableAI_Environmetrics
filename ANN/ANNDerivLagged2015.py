@@ -23,7 +23,9 @@ import scipy.stats as sc
 # os.chdir("/Volumes/GoogleDrive/My Drive/Research/Working Group /SoilMoistureExample/Model_ANN")
 # os.chdir("/home/ed/Documents/TiesWG/Model_ANN")
 # os.chdir("G:/GoogleDrive/My Drive/Research/Working Group /SoilMoistureExample/Model_ANN")
-os.chdir("/Users/ed/Documents/GitHub/Spatial/explainableAI_Environmetrics/ANN")
+# os.chdir("/Users/ed/Documents/GitHub/Spatial/explainableAI_Environmetrics/ANN")
+os.chdir("C:/Users/Ed/Documents/GitHub/explainableAI_Environmetrics/ANN")
+
 
 # Set the desired lag...
 Lag1 = 3
@@ -40,7 +42,8 @@ SSTanom2 = SST1_data2[ :, 3:891 ];
 #SSTanom1 = np.genfromtxt("SSTanom011950_122009clust.dat", delimiter ='\t')
 #SSTanom2 = np.genfromtxt("SSTanom011950_122009.dat", delimiter =',')
 SoilMoist1in = pd.read_csv("cornbelt.csv", sep =',', header = 0 )
-LandData1 = SoilMoist1in[ (['Lon','Lat']) ];
+LandData1 = SoilMoist1in[ (['Unnamed: 0','Lon','Lat']) ];
+LandData1.rename(columns = {'Unnamed: 0':'sm_loc_id'});
 SoilMoist1a = np.asarray(SoilMoist1in);
 SoilMoist1b = SoilMoist1a[:,3:890]
 SoilMoist1bm = np.mean( SoilMoist1b, axis = 0 )
@@ -58,12 +61,12 @@ SoilMoist1 = SoilMoist1c;
 
 # Set up a neural network
 # define base model
-SoilTrain =  np.transpose( SoilMoist1[:,Lag1:(789+Lag1+12)] )
-SSTTrain = np.transpose( SSTanom2[:,0:(789+12)] )
+SoilTrain =  np.transpose( SoilMoist1[:,Lag1:(794+Lag1+12)] )
+SSTTrain = np.transpose( SSTanom2[:,0:(794+12)] )
 SSTFirst = SSTTrain[0,:]
 SSTTrainSd1 = np.std(SSTTrain, axis = 0 )
-SoilTest = SoilMoist1[:,(797+12)]
-SoilTesta = SoilMoist1a[:,(797+12)]
+SoilTest = SoilMoist1[:,(800+12)]
+SoilTesta = SoilMoist1a[:,(800+12)]
 
 
 #pca_top1 = PCA( n_components = 60 )
@@ -86,20 +89,55 @@ model.add( Dense( 1224 ) )#, activation = 'tanh' ) )
 model.compile( loss = 'mean_squared_error', optimizer='adam' )
     
 # # fit the keras model on the dataset
-model.fit(SSTTrain, SoilTrain, epochs=500)#, batch_size=10)
+model.fit(SSTTrain, SoilTrain, epochs=100)#, batch_size=10)
 
 
-SSTtest = np.reshape( SSTanom2[:,(794+12)], (1, 3186) ) 
-SoilTest = SoilMoist1[:,(797+12)]
+SSTtest = np.reshape( SSTanom2[:,(797+12)], (1, 3186) ) 
+SoilTest = SoilMoist1[:,(800+12)]
 
 # Predict with the model
-y1a = model.predict( SSTtest )*SoilMoist1s[(797+12)] + SoilMoist1bm[(797+12)] 
+y1a = model.predict( SSTtest )*SoilMoist1s[(800+12)] + SoilMoist1bm[(800+12)] 
 y1 = model.predict( SSTtest ) 
-MSE1 = MeanSquaredError()
-y1MSE = MSE1( SoilTest, y1 ).numpy()
-y1MSEa = MSE1( SoilTesta, y1a ).numpy()
+#MSE1 = MeanSquaredError()
+#y1MSE = MSE1( SoilTest, y1 ).numpy()
+#y1MSEa = MSE1( SoilTesta, y1a ).numpy()
 plt.plot( SoilTest, y1.T ,'o')
 predR2 = sc.pearsonr(y1.T[:,0], SoilTest)[0]**2
+
+# Get out the predicted values
+y1b = pd.DataFrame( y1a.T, columns=['fit'])
+y1c = pd.DataFrame( SoilMoist1b[:,(800+12)], columns = ['value'] )
+date1 = pd.DataFrame( pd.Series( np.tile(['5/1/2015'], 1224) ), columns =['date'] )
+LandData2 = LandData1[ (['Lon','Lat']) ]
+LD1 = pd.DataFrame( np.asarray(LandData1['Unnamed: 0']), columns = ['sm_loc_id'] )
+data3 =  pd.concat( [LD1, LandData2, date1, y1c, y1b], axis = 1 )
+data3.to_csv('outputs/ANN2015_pred.csv', index = False )
+
+
+# Get out the fitted values
+y1_fit = model.predict( SSTTrain )
+y1_fita = y1_fit[0,:]*SoilMoist1s[(0)] + SoilMoist1bm[(0)] 
+col1 = list( SoilMoist1in.columns )[(3+Lag1):(800+12)]
+col2 = [s.replace("X", "") for s in col1 ]
+date2 = pd.DataFrame(pd.Series([s.replace(".", "/") for s in col2 ]), columns = ['date'])
+date3 = pd.DataFrame( pd.Series( np.tile(date2.loc[0], 1224) ), columns =['date'] )
+val1 = pd.DataFrame(  SoilMoist1b[:,0], columns = ['value'] )
+y1_fit2 = pd.DataFrame( y1_fita.T, columns = ['fit'] )
+fit1 = pd.concat( [LD1, LandData2, date3, val1, y1_fit2] , axis = 1 )
+for i in (n+1 for n in range(793+12) ):
+    y1_fita = y1_fit[i,:]*SoilMoist1s[(i)] + SoilMoist1bm[(i)] 
+    date3 = pd.DataFrame( pd.Series( np.tile(date2.loc[i], 1224) ), columns =['date'] )
+    val1 = pd.DataFrame(  SoilMoist1b[:,i], columns = ['value'] )
+    y1_fit2 = pd.DataFrame( y1_fita.T, columns = ['fit'] )
+    fit1a = pd.concat( [LD1, LandData2, date3, val1, y1_fit2] , axis = 1 )
+    fit1 = pd.concat( [fit1, fit1a], axis = 0 )
+    
+
+fit1.to_csv('outputs/ANN2015_fits.csv', index = False )
+
+
+
+
 
 # Data for a three-dimensional line
 zpoints1 = SoilTrain[0,:]

@@ -12,10 +12,13 @@ library(lubridate)
 library(modelr)
 theme_set(theme_classic(base_size = 25))
 
-
 x1 <- read.csv( "plots/ANNDerivWideRatioRaw.csv")
+SoilMoisture <- read.csv("../Soil.csv", header = TRUE )
+SoilMoisture2 <- read.csv( "cornbelt.csv", header = TRUE )
 
-d1 <- data.frame(Lon = x1$X, Lat = x1$Y, MSPEratio = x1$Z4, months = "January" )
+
+
+d1 <- rbind( data.frame(Lon = x1$X, Lat = x1$Y, MSPEratio = x1$Z4, months = "January" )
 
 png("figures/PredDec_ratio.png",width=960,height=360)
 p = d1 %>%  

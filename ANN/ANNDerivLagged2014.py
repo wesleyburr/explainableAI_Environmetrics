@@ -23,7 +23,8 @@ import scipy.stats as sc
 # os.chdir("/Volumes/GoogleDrive/My Drive/Research/Working Group /SoilMoistureExample/Model_ANN")
 # os.chdir("/home/ed/Documents/TiesWG/Model_ANN")
 # os.chdir("G:/GoogleDrive/My Drive/Research/Working Group /SoilMoistureExample/Model_ANN")
-os.chdir("C:/Users/Ed/Documents/GitHub/explainableAI_Environmetrics/ANN")
+#os.chdir("C:/Users/Ed/Documents/GitHub/explainableAI_Environmetrics/ANN")
+os.chdir("/home/ed/Documents/GitHub/explainableAI_Environmetrics/ANN")
 
 # Set the desired lag...
 Lag1 = 3
@@ -49,6 +50,8 @@ SoilMoist1s = np.std( SoilMoist1b, axis = 0 )
 SoilMoist1c = ( SoilMoist1b - SoilMoist1bm )/SoilMoist1s
 SoilMoist1 = SoilMoist1c;
 
+# SST1data2 column 796 is february 2014
+# SoilMoist1 column 799 is may 2014
 # "X8.1.2014"
 
 
@@ -59,12 +62,14 @@ SoilMoist1 = SoilMoist1c;
 
 # Set up a neural network
 # define base model
-SoilTrain =  np.transpose( SoilMoist1[:,Lag1:(794+Lag1)] )
-SSTTrain = np.transpose( SSTanom2[:,0:(794)] )
+SoilTrain =  np.transpose( SoilMoist1[:,Lag1:(792+Lag1)] )
+SSTTrain = np.transpose( SSTanom2[:,0:(792)] )
 SSTFirst = SSTTrain[0,:]
 SSTTrainSd1 = np.std(SSTTrain, axis = 0 )
-SoilTest = SoilMoist1[:,(800)]
-SoilTesta = SoilMoist1a[:,(800)]
+SoilTest = SoilMoist1[:,(799)]
+SoilTesta = SoilMoist1a[:,(799)]
+SoilTesta = SoilMoist1a[:,(799)]
+# SoilMoist1in['X5.1.2014']
 
 
 #pca_top1 = PCA( n_components = 60 )

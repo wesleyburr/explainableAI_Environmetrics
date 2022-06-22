@@ -56,12 +56,12 @@ SoilMoist1 = SoilMoist1c;
 
 # Set up a neural network
 # define base model
-SoilTrain =  np.transpose( SoilMoist1[:,Lag1:(794+Lag1)] )
-SSTTrain = np.transpose( SSTanom2[:,0:794] )
+SoilTrain =  np.transpose( SoilMoist1[:,Lag1:(792+Lag1)] )
+SSTTrain = np.transpose( SSTanom2[:,0:792] )
 SSTFirst = SSTTrain[0,:]
 SSTTrainSd1 = np.std(SSTTrain, axis = 0 )
-SoilTest = SoilMoist1[:,800]
-SoilTesta = SoilMoist1a[:,800]
+SoilTest = SoilMoist1[:,796]
+SoilTesta = SoilMoist1a[:,796]
 
 pca_top1 = PCA( n_components = 60 )
 pca_top1.fit( SSTTrain) 
@@ -85,12 +85,12 @@ model.compile( loss = 'mean_squared_error', optimizer='adam')
 model.fit(STTrain_pca, SoilTrain, epochs=500)#, batch_size=10)
 
 
-SSTtest = pca_top1.transform( np.reshape( SSTanom2[:,797], (1, 3186) ) )
-SoilTest = SoilMoist1[:,800]
+SSTtest = pca_top1.transform( np.reshape( SSTanom2[:,793], (1, 3186) ) )
+SoilTest = SoilMoist1[:,796]
 
 # Predict with the model
 y1 = model.predict( SSTtest )
-y1a = model.predict( SSTtest )*SoilMoist1s[800] + SoilMoist1bm[800] 
+y1a = model.predict( SSTtest )*SoilMoist1s[796] + SoilMoist1bm[796] 
 #MSE1 = MeanSquaredError()
 #y1MSE = MSE1( SoilTest, y1 ).numpy()
 #y1MSEa = MSE1( SoilTesta, y1a ).numpy()
@@ -101,7 +101,7 @@ predR2 = sc.pearsonr(y1.T[:,0], SoilTest)[0]**2
 
 # Get out the predicted values
 y1b = pd.DataFrame( y1a.T, columns=['fit'])
-y1c = pd.DataFrame( SoilMoist1b[:,800], columns = ['value'] )
+y1c = pd.DataFrame( SoilMoist1b[:,796], columns = ['value'] )
 date1 = pd.DataFrame( pd.Series( np.tile(['5/1/2014'], 1224) ), columns =['date'] )
 LandData2 = LandData1[ (['Lon','Lat']) ]
 LD1 = pd.DataFrame( np.asarray(LandData1['Unnamed: 0']), columns = ['sm_loc_id'] )
@@ -119,7 +119,7 @@ date3 = pd.DataFrame( pd.Series( np.tile(date2.loc[0], 1224) ), columns =['date'
 val1 = pd.DataFrame(  SoilMoist1b[:,0], columns = ['value'] )
 y1_fit2 = pd.DataFrame( y1_fita.T, columns = ['fit'] )
 fit1 = pd.concat( [LD1, LandData2, date3, val1, y1_fit2] , axis = 1 )
-for i in (n+1 for n in range(793) ):
+for i in (n+1 for n in range(791) ):
     y1_fita = y1_fit[i,:]*SoilMoist1s[(i)] + SoilMoist1bm[(i)] 
     date3 = pd.DataFrame( pd.Series( np.tile(date2.loc[i], 1224) ), columns =['date'] )
     val1 = pd.DataFrame(  SoilMoist1b[:,i], columns = ['value'] )

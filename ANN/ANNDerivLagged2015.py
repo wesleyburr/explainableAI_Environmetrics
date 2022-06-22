@@ -61,12 +61,12 @@ SoilMoist1 = SoilMoist1c;
 
 # Set up a neural network
 # define base model
-SoilTrain =  np.transpose( SoilMoist1[:,Lag1:(794+Lag1+12)] )
-SSTTrain = np.transpose( SSTanom2[:,0:(794+12)] )
+SoilTrain =  np.transpose( SoilMoist1[:,Lag1:(792+Lag1+12)] )
+SSTTrain = np.transpose( SSTanom2[:,0:(792+12)] )
 SSTFirst = SSTTrain[0,:]
 SSTTrainSd1 = np.std(SSTTrain, axis = 0 )
-SoilTest = SoilMoist1[:,(800+12)]
-SoilTesta = SoilMoist1a[:,(800+12)]
+SoilTest = SoilMoist1[:,(796+12)]
+SoilTesta = SoilMoist1a[:,(796+12)]
 
 
 #pca_top1 = PCA( n_components = 60 )
@@ -92,8 +92,8 @@ model.compile( loss = 'mean_squared_error', optimizer='adam' )
 model.fit(SSTTrain, SoilTrain, epochs=100)#, batch_size=10)
 
 
-SSTtest = np.reshape( SSTanom2[:,(797+12)], (1, 3186) ) 
-SoilTest = SoilMoist1[:,(800+12)]
+SSTtest = np.reshape( SSTanom2[:,(793+12)], (1, 3186) ) 
+SoilTest = SoilMoist1[:,(796+12)]
 
 # Predict with the model
 y1a = model.predict( SSTtest )*SoilMoist1s[(800+12)] + SoilMoist1bm[(800+12)] 
@@ -106,7 +106,7 @@ predR2 = sc.pearsonr(y1.T[:,0], SoilTest)[0]**2
 
 # Get out the predicted values
 y1b = pd.DataFrame( y1a.T, columns=['fit'])
-y1c = pd.DataFrame( SoilMoist1b[:,(800+12)], columns = ['value'] )
+y1c = pd.DataFrame( SoilMoist1b[:,(796+12)], columns = ['value'] )
 date1 = pd.DataFrame( pd.Series( np.tile(['5/1/2015'], 1224) ), columns =['date'] )
 LandData2 = LandData1[ (['Lon','Lat']) ]
 LD1 = pd.DataFrame( np.asarray(LandData1['Unnamed: 0']), columns = ['sm_loc_id'] )
@@ -124,7 +124,7 @@ date3 = pd.DataFrame( pd.Series( np.tile(date2.loc[0], 1224) ), columns =['date'
 val1 = pd.DataFrame(  SoilMoist1b[:,0], columns = ['value'] )
 y1_fit2 = pd.DataFrame( y1_fita.T, columns = ['fit'] )
 fit1 = pd.concat( [LD1, LandData2, date3, val1, y1_fit2] , axis = 1 )
-for i in (n+1 for n in range(793+12) ):
+for i in (n+1 for n in range(791+12) ):
     y1_fita = y1_fit[i,:]*SoilMoist1s[(i)] + SoilMoist1bm[(i)] 
     date3 = pd.DataFrame( pd.Series( np.tile(date2.loc[i], 1224) ), columns =['date'] )
     val1 = pd.DataFrame(  SoilMoist1b[:,i], columns = ['value'] )

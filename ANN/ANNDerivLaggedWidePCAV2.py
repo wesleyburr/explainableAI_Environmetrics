@@ -75,7 +75,7 @@ Soil1 = np.zeros(1224)
 SST1 = np.zeros( [1, 60*6] )
 SST1Raw = np.zeros([ 1, 3186*6 ])
 
-for i in range(780):
+for i in range(779):
     SoilTraintmp = SoilMoist1[:,(i+9)]
     Soil1 = np.vstack( (Soil1, SoilTraintmp) )
     SSTtmp1 = np.concatenate(( pca1.transform( SSTanom2[:,i].reshape([1,3186])).T,
@@ -104,7 +104,7 @@ SoilTrain =  np.copy( Soil2 )
 SSTTrain = np.copy( SST2v )
 SSTFirst = SSTTrain[0,:]
 SSTTrainSd1 = np.std(SST1Raw, axis = 0 )
-SoilTesta = SoilMoist1a[:,797]
+SoilTesta = SoilMoist1a[:,796]
 
 # Build a model
 model = Sequential()
@@ -122,16 +122,16 @@ model.fit(SSTTrain, SoilTrain, epochs=500)#, batch_size=10)
 
 # Predict the data...
 Zsd1 = np.std( SoilTrain[0,:] )
-Z1 = SoilMoist1[:,797]
-SSTFirst = np.concatenate( ( pca1.transform(SSTanom2[:,789].reshape([1,3186])).T,
+Z1 = SoilMoist1[:,796]
+SSTFirst = np.concatenate( ( pca1.transform(SSTanom2[:,788].reshape([1,3186])).T,
+                             pca1.transform(SSTanom2[:,789].reshape([1,3186])).T,
                              pca1.transform(SSTanom2[:,790].reshape([1,3186])).T,
                              pca1.transform(SSTanom2[:,791].reshape([1,3186])).T,
                              pca1.transform(SSTanom2[:,792].reshape([1,3186])).T,
-                             pca1.transform(SSTanom2[:,793].reshape([1,3186])).T,
-                             pca1.transform(SSTanom2[:,794].reshape([1,3186])).T ) )
+                             pca1.transform(SSTanom2[:,793].reshape([1,3186])).T ) )
 # Predict with the model
 y1 = model.predict( np.reshape( SSTFirst, (1, 60*6) ) )
-y1a = y1*SoilMoist1s[797] + SoilMoist1bm[797]
+y1a = y1*SoilMoist1s[796] + SoilMoist1bm[796]
 MSE1 = MeanSquaredError()
 y1MSE = MSE1( Z1, y1 ).numpy()
 y1MSEa = MSE1( SoilTesta, y1a ).numpy()
@@ -149,13 +149,13 @@ ypoints1  = LandData1['Lon']
 
 # Predict the data...
 Zsd1 = np.std( SoilTrain[0,:] )
-Z1 = SoilMoist1[:,797]
-SSTFirst = np.concatenate( (SSTanom2[:,789],
+Z1 = SoilMoist1[:,796]
+SSTFirst = np.concatenate( (SSTanom2[:,788],
+    SSTanom2[:,789],
     SSTanom2[:,790],
     SSTanom2[:,791],
     SSTanom2[:,792],
-    SSTanom2[:,793],
-    SSTanom2[:,794]) )
+    SSTanom2[:,793]) )
 Zsens1 = np.copy( SSTFirst )
 Zn1 = np.shape(Zsens1)[0]
 Zsens2 = np.copy( SSTFirst )

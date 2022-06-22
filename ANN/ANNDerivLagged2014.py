@@ -95,7 +95,7 @@ model.add( Dense( 1224 ) )#, activation = 'tanh' ) )
 model.compile( loss = 'mean_squared_error', optimizer='adam' )
     
 # # fit the keras model on the dataset
-model.fit(SSTTrain, SoilTrain, epochs=100)#, batch_size=10)
+model.fit(SSTTrain, SoilTrain, epochs=200)#, batch_size=10)
 
 
 SSTtest = np.reshape( SSTanom2[:,(793)], (1, 3186) ) 
@@ -121,9 +121,10 @@ data3.to_csv('outputs/ANN2014_pred.csv', index = False )
 
 
 # Get out the fitted values
-y1_fit = model.predict( SSTTrain )
+SSTTrain_full = np.transpose( SSTanom2[:,0:(884)] )
+y1_fit = model.predict( SSTTrain_full )
 y1_fita = y1_fit[0,:]*SoilMoist1s[(0)] + SoilMoist1bm[(0)] 
-col1 = list( SoilMoist1in.columns )[(3+Lag1):800]
+col1 = list( SoilMoist1in.columns )[(3+Lag1):891]
 col2 = [s.replace("X", "") for s in col1 ]
 date2 = pd.DataFrame(pd.Series([s.replace(".", "/") for s in col2 ]), columns = ['date'])
 date3 = pd.DataFrame( pd.Series( np.tile(date2.loc[0], 1224) ), columns =['date'] )

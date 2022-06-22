@@ -21,7 +21,8 @@ import scipy.stats as sc
 # Change the working directory
 # os.chdir("/Volumes/GoogleDrive/My Drive/Research/Working Group /SoilMoistureExample/Model_ANN")
 # os.chdir("/home/ed/Documents/TiesWG/Model_ANN")
-os.chdir("C:/Users/Ed/Documents/GitHub/explainableAI_Environmetrics/ANN")
+#os.chdir("C:/Users/Ed/Documents/GitHub/explainableAI_Environmetrics/ANN")
+os.chdir("/home/ed/Documents/GitHub/explainableAI_Environmetrics/ANN")
 
 # Set the desired lag...
 Lag1 = 3
@@ -111,7 +112,8 @@ data3.to_csv('outputs/ANN2014PCA_pred.csv', index = False )
 
 # Get out the fitted values
 SSTTrain_full = np.transpose( SSTanom2[:,0:(884)] )
-y1_fit = model.predict( SSTTrain_full )
+STTrain_pca_full = pca_top1.transform( SSTTrain_full )
+y1_fit = model.predict( STTrain_pca_full  )
 y1_fita = y1_fit[0,:]*SoilMoist1s[(0)] + SoilMoist1bm[(0)] 
 col1 = list( SoilMoist1in.columns )[(3+Lag1):891]
 col2 = [s.replace("X", "") for s in col1 ]

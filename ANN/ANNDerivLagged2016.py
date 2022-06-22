@@ -24,7 +24,7 @@ import scipy.stats as sc
 # os.chdir("/home/ed/Documents/TiesWG/Model_ANN")
 # os.chdir("G:/GoogleDrive/My Drive/Research/Working Group /SoilMoistureExample/Model_ANN")
 # os.chdir("/Users/ed/Documents/GitHub/Spatial/explainableAI_Environmetrics/ANN")
-os.chdir("C:/Users/Ed/Documents/GitHub/explainableAI_Environmetrics/ANN")
+os.chdir("/home/ed/Documents/GitHub/explainableAI_Environmetrics/ANN")
 
 
 # Set the desired lag...

@@ -89,7 +89,7 @@ model.add( Dense( 1224 ) )#, activation = 'tanh' ) )
 model.compile( loss = 'mean_squared_error', optimizer='adam' )
     
 # # fit the keras model on the dataset
-model.fit(SSTTrain, SoilTrain, epochs=100)#, batch_size=10)
+model.fit(SSTTrain, SoilTrain, epochs=200)#, batch_size=10)
 
 
 SSTtest = np.reshape( SSTanom2[:,(793+24)], (1, 3186) ) 
@@ -116,16 +116,17 @@ data3.to_csv('outputs/ANN2016_pred.csv', index = False )
 
 
 # Get out the fitted values
-y1_fit = model.predict( SSTTrain )
+SSTTrain_full = np.transpose( SSTanom2[:,0:(884)] )
+y1_fit = model.predict( SSTTrain_full )
 y1_fita = y1_fit[0,:]*SoilMoist1s[(0)] + SoilMoist1bm[(0)] 
-col1 = list( SoilMoist1in.columns )[(3+Lag1):(800+24)]
+col1 = list( SoilMoist1in.columns )[(3+Lag1):891]
 col2 = [s.replace("X", "") for s in col1 ]
 date2 = pd.DataFrame(pd.Series([s.replace(".", "/") for s in col2 ]), columns = ['date'])
 date3 = pd.DataFrame( pd.Series( np.tile(date2.loc[0], 1224) ), columns =['date'] )
 val1 = pd.DataFrame(  SoilMoist1b[:,0], columns = ['value'] )
 y1_fit2 = pd.DataFrame( y1_fita.T, columns = ['fit'] )
 fit1 = pd.concat( [LD1, LandData2, date3, val1, y1_fit2] , axis = 1 )
-for i in (n+1 for n in range(791+24) ):
+for i in (n+1 for n in range(883) ):
     y1_fita = y1_fit[i,:]*SoilMoist1s[(i)] + SoilMoist1bm[(i)] 
     date3 = pd.DataFrame( pd.Series( np.tile(date2.loc[i], 1224) ), columns =['date'] )
     val1 = pd.DataFrame(  SoilMoist1b[:,i], columns = ['value'] )
@@ -133,6 +134,7 @@ for i in (n+1 for n in range(791+24) ):
     fit1a = pd.concat( [LD1, LandData2, date3, val1, y1_fit2] , axis = 1 )
     fit1 = pd.concat( [fit1, fit1a], axis = 0 )
     
+ 
 
 fit1.to_csv('outputs/ANN2016_fits.csv', index = False )
 

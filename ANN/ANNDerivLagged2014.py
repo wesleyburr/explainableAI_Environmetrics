@@ -131,7 +131,7 @@ date3 = pd.DataFrame( pd.Series( np.tile(date2.loc[0], 1224) ), columns =['date'
 val1 = pd.DataFrame(  SoilMoist1b[:,0], columns = ['value'] )
 y1_fit2 = pd.DataFrame( y1_fita.T, columns = ['fit'] )
 fit1 = pd.concat( [LD1, LandData2, date3, val1, y1_fit2] , axis = 1 )
-for i in (n+1 for n in range(791) ):
+for i in (n+1 for n in range(883) ):
     y1_fita = y1_fit[i,:]*SoilMoist1s[(i)] + SoilMoist1bm[(i)] 
     date3 = pd.DataFrame( pd.Series( np.tile(date2.loc[i], 1224) ), columns =['date'] )
     val1 = pd.DataFrame(  SoilMoist1b[:,i], columns = ['value'] )

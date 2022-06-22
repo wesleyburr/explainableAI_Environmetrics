@@ -10,6 +10,9 @@ theme_set(theme_classic(base_size = 25))
 SoilMoisture.all <- read.csv("../Soil.csv", header = T) %>%
   tibble::rowid_to_column("sm_loc_id")
 
+### in-sample period
+date.in = ymd("2013-12-31")
+
 ### function that inputs a model name and 
 ### outputs table of metrics (RMSE, R2, skill), 
 ### scatter plot of fits for that model, and MSPE by location
@@ -18,6 +21,7 @@ SoilMoisture.all <- read.csv("../Soil.csv", header = T) %>%
 metrics_gen=function(model_name){
   
   tab.fit=read.csv(paste0("outputs/",model_name,"_fits.csv"))
+  tab.fit$date <- as.Date( tab.fit$date, '%m/%d/%Y' )
   
   ## MSPE and R2
   tab.MSPE=tab.fit %>%
@@ -113,7 +117,18 @@ metrics_gen=function(model_name){
   dev.off()
 }
 
-# metrics_gen("persistence")
-# metrics_gen("climatology")
-# metrics_gen("funclm")
+#metrics_gen("persistence")
+#metrics_gen("climatology")
+#metrics_gen("funclm")
+
+metrics_gen( "ANN2014" )
+metrics_gen( "ANN2015" )
+metrics_gen( "ANN2016" )
+
+metrics_gen( "ANN2014PCA" )
+metrics_gen( "ANN2015PCA" )
+metrics_gen( "ANN2016PCA" )
+
+metrics_gen( "ANNWidePCA")
+metrics_gen( "ANNWide")
 

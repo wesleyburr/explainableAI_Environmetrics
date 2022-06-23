@@ -115,7 +115,7 @@ model.add( Dense( 1224))#, activation = 'tanh' ) )
 model.compile( loss = 'mean_squared_error', optimizer='adam')
     
 # # fit the keras model on the dataset
-model.fit(SSTTrain, SoilTrain, epochs=200)#, batch_size=10)
+model.fit(SSTTrain, SoilTrain, epochs=100)#, batch_size=10)
 
 
 # Predict the data...

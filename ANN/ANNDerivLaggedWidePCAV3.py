@@ -161,16 +161,32 @@ data3.to_csv('outputs/ANNWidePCA_pred.csv', index = False )
 
 
 # Get out the fitted values
-y1_fit = model.predict( SSTTrain )
+SST1 = np.zeros( [1, 60*7] )
+for i in range(879):
+    SSTtmp1 = np.concatenate(( pca1.transform( SSTanom2[:,i].reshape([1,3186])).T,
+        pca1.transform(SSTanom2[:,(i+1)].reshape([1,3186])).T,
+        pca1.transform(SSTanom2[:,(i+2)].reshape([1,3186])).T,
+        pca1.transform(SSTanom2[:,(i+3)].reshape([1,3186])).T,
+        pca1.transform(SSTanom2[:,(i+4)].reshape([1,3186])).T,
+        pca1.transform(SSTanom2[:,(i+5)].reshape([1,3186])).T,
+        pca1.transform(SSTanom2[:,(i+6)].reshape([1,3186])).T))
+    SST1 = np.vstack( (SST1, SSTtmp1.T))
+    
+SST2v = np.delete( SST1, 0, axis = 0 )
+
+# Run the PCA version 
+    
+SSTTrain_full = np.copy( SST2v )
+y1_fit = model.predict( SSTTrain_full )
 y1_fita = y1_fit[0,:]*SoilMoist1s[(0)] + SoilMoist1bm[(0)] 
-col1 = list( SoilMoist1in.columns )[12:800]
+col1 = list( SoilMoist1in.columns )[12:879]
 col2 = [s.replace("X", "") for s in col1 ]
 date2 = pd.DataFrame(pd.Series([s.replace(".", "/") for s in col2 ]), columns = ['date'])
 date3 = pd.DataFrame( pd.Series( np.tile(date2.loc[0], 1224) ), columns =['date'] )
 val1 = pd.DataFrame(  SoilMoist1b[:,0], columns = ['value'] )
 y1_fit2 = pd.DataFrame( y1_fita.T, columns = ['fit'] )
 fit1 = pd.concat( [LD1, LandData2, date3, val1, y1_fit2] , axis = 1 )
-for i in (n+1 for n in range(778) ):
+for i in (n+1 for n in range(866) ):
     y1_fita = y1_fit[i,:]*SoilMoist1s[(i)] + SoilMoist1bm[(i)] 
     date3 = pd.DataFrame( pd.Series( np.tile(date2.loc[i], 1224) ), columns =['date'] )
     val1 = pd.DataFrame(  SoilMoist1b[:,i], columns = ['value'] )

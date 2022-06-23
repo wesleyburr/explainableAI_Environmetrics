@@ -23,6 +23,14 @@ metrics_gen=function(model_name){
   tab.fit=read.csv(paste0("outputs/",model_name,"_fits.csv"))
   tab.fit$date <- as.Date( tab.fit$date, '%m/%d/%Y' )
   
+  #Swap out the sm_loc_id from cornbelt.csv to sm_loc_id from SoilMoisture.all
+  LatLonSm_SoilMoisture.all <- SoilMoisture.all[,c( "sm_loc_id", "Lon", "Lat") ]
+  n1 <- nrow( LatLonSm_SoilMoisture.all )
+  for( i in 1:n1 ){
+    loc_hold1 <- LatLonSm_SoilMoisture.all[i,]
+    tab.fit$sm_loc_id[ tab.fit$Lon == loc_hold1$Lon & tab.fit$Lat == loc_hold1$Lat] <- loc_hold1$sm_loc_id 
+  }
+  
   ## MSPE and R2
   tab.MSPE=tab.fit %>%
   dplyr::filter(date > date.in) %>%
@@ -83,7 +91,7 @@ metrics_gen=function(model_name){
   dev.off()
 
   ##### plot MSPE (all months and May) by corn belt location
-
+  
   tab.fit.byloc=tab.fit %>% 
   select(sm_loc_id,Lon,Lat,value,fit) %>%
   group_by(sm_loc_id) %>%
